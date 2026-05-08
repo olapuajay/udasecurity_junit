@@ -9,13 +9,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.udacity.catpoint.application.StatusListener;
+
+import java.util.Set;
+
+import static org.mockito.Mockito.*;
 
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class SecurityServiceTest {
@@ -188,7 +192,7 @@ public class SecurityServiceTest {
 
         securityService.processImage(null);
 
-        verify(securityRepository, org.mockito.Mockito.never())
+        verify(securityRepository, never())
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
 
@@ -291,7 +295,163 @@ public class SecurityServiceTest {
 
         securityService.processImage(null);
 
-        verify(securityRepository, org.mockito.Mockito.never())
+        verify(securityRepository, never())
                 .setAlarmStatus(AlarmStatus.NO_ALARM);
+    }
+
+    @Test
+    void alarmState_sensorChanges_doNotAffectAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.ALARM);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        verify(securityRepository, never())
+                .setAlarmStatus(any());
+
+        verify(securityRepository)
+                .updateSensor(sensor);
+    }
+
+    @Test
+    void inactiveSensorDeactivated_noAlarmChange() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(false);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.NO_ALARM);
+
+        securityService.changeSensorActivationStatus(sensor, false);
+        verify(securityRepository, never())
+                .setAlarmStatus(any());
+    }
+
+    @Test
+    void pendingAlarm_allSensorsInactive_returnToNoAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(true);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.PENDING_ALARM);
+        when(securityRepository.getSensors())
+                .thenReturn(Set.of(sensor));
+
+        securityService.changeSensorActivationStatus(sensor, false);
+
+        verify(securityRepository)
+                .setAlarmStatus(AlarmStatus.NO_ALARM);
+    }
+
+    @Test
+    void pendingAlarm_sensorAlreadyActive_changeToAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(true);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.PENDING_ALARM);
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        verify(securityRepository)
+                .setAlarmStatus(AlarmStatus.ALARM);
+    }
+
+    @Test
+    void disarmedSensorActivation_noAlarmChange() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        when(securityRepository.getArmingStatus())
+                .thenReturn(ArmingStatus.DISARMED);
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.NO_ALARM);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        verify(securityRepository, never())
+                .setAlarmStatus(AlarmStatus.PENDING_ALARM);
+    }
+
+    @Test
+    void catNotDetected_butSensorsActive_keepCurrentAlarmState() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(true);
+
+        when(securityRepository.getSensors())
+                .thenReturn(Set.of(sensor));
+        when(imageService.imageContainsCat(any(), anyFloat()))
+                .thenReturn(false);
+
+        securityService.processImage(null);
+
+        verify(securityRepository, never())
+                .setAlarmStatus(AlarmStatus.NO_ALARM);
+    }
+
+    @Test
+    void addStatusListener_listenerAddedSuccessfully() {
+        StatusListener listener = mock(StatusListener.class);
+
+        securityService.addStatusListener(listener);
+
+        securityService.setAlarmStatus(AlarmStatus.ALARM);
+
+        verify(listener).notify(AlarmStatus.ALARM);
+    }
+
+    @Test
+    void removeStatusListener_listenerRemovedSuccessfully() {
+        StatusListener listener = mock(StatusListener.class);
+
+        securityService.addStatusListener(listener);
+        securityService.removeStatusListener(listener);
+
+        securityService.setAlarmStatus(AlarmStatus.ALARM);
+
+        verify(listener, never()).notify(any());
+    }
+
+    @Test
+    void addSensor_callsRepository() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        securityService.addSensor(sensor);
+
+        verify(securityRepository).addSensor(sensor);
+    }
+
+    @Test
+    void removeSensor_callsRepository() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        securityService.removeSensor(sensor);
+
+        verify(securityRepository).removeSensor(sensor);
+    }
+
+    @Test
+    void setAlarmStatus_notifiesListeners() {
+        StatusListener listener = mock(StatusListener.class);
+
+        securityService.addStatusListener(listener);
+
+        securityService.setAlarmStatus(AlarmStatus.ALARM);
+
+        verify(securityRepository).setAlarmStatus(AlarmStatus.ALARM);
+        verify(listener).notify(AlarmStatus.ALARM);
+    }
+
+    @Test
+    void getSensors_returnsRepositorySensors() {
+        Set<Sensor> sensors = Set.of(
+                new Sensor("Door", SensorType.DOOR)
+        );
+
+        when(securityRepository.getSensors())
+                .thenReturn(sensors);
+
+        securityService.getSensors();
+
+        verify(securityRepository).getSensors();
     }
 }

@@ -60,6 +60,11 @@
             <useModulePath>false</useModulePath>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>4.8.6.2</version>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>
@@ -67,15 +72,4 @@
     <module>image-service</module>
     <module>security-service</module>
   </modules>
-  <reporting>
-    <plugins>
-
-      <plugin>
-        <groupId>com.github.spotbugs</groupId>
-        <artifactId>spotbugs-maven-plugin</artifactId>
-        <version>4.8.6.2</version>
-      </plugin>
-
-    </plugins>
-  </reporting>
 </project>
