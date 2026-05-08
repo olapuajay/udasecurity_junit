@@ -1,6 +1,7 @@
 package com.udacity.catpoint.service;
 
 import com.udacity.catpoint.data.*;
+import com.udacity.catpoint.image.service.ImageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -229,5 +230,68 @@ public class SecurityServiceTest {
 
         verify(securityRepository)
                 .setAlarmStatus(AlarmStatus.ALARM);
+    }
+
+    @Test
+    void sensorAlreadyInactive_noAlarmStateChange() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(false);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.NO_ALARM);
+        securityService.changeSensorActivationStatus(sensor, false);
+
+        verify(securityRepository)
+                .updateSensor(sensor);
+    }
+
+    @Test
+    void sensorActivatedWhilePending_alarmStateChangesToAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(true);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.PENDING_ALARM);
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        verify(securityRepository)
+                .setAlarmStatus(AlarmStatus.ALARM);
+    }
+
+    @Test
+    void systemDisarmed_alarmStateChangesToNoAlarm() {
+        securityService.setArmingStatus(ArmingStatus.DISARMED);
+
+        verify(securityRepository)
+                .setAlarmStatus(AlarmStatus.NO_ALARM);
+    }
+
+    @Test
+    void alarmStateAlreadyAlarm_sensorChangeDoesNotAffectAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+
+        when(securityRepository.getAlarmStatus())
+                .thenReturn(AlarmStatus.ALARM);
+
+        securityService.changeSensorActivationStatus(sensor, true);
+
+        verify(securityRepository)
+                .updateSensor(sensor);
+    }
+
+    @Test
+    void catNotDetectedButSensorsActive_alarmStateDoesNotChangeToNoAlarm() {
+        Sensor sensor = new Sensor("Door", SensorType.DOOR);
+        sensor.setActive(true);
+
+        when(securityRepository.getSensors())
+                .thenReturn(Set.of(sensor));
+        when(imageService.imageContainsCat(any(), anyFloat()))
+                .thenReturn(false);
+
+        securityService.processImage(null);
+
+        verify(securityRepository, org.mockito.Mockito.never())
+                .setAlarmStatus(AlarmStatus.NO_ALARM);
     }
 }

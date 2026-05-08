@@ -5,6 +5,7 @@ import com.udacity.catpoint.data.AlarmStatus;
 import com.udacity.catpoint.data.ArmingStatus;
 import com.udacity.catpoint.data.SecurityRepository;
 import com.udacity.catpoint.data.Sensor;
+import com.udacity.catpoint.image.service.ImageService;
 
 import java.awt.image.BufferedImage;
 import java.util.HashSet;
@@ -41,10 +42,11 @@ public class SecurityService {
             setAlarmStatus(AlarmStatus.NO_ALARM);
         }
 
-        securityRepository.getSensors().forEach(sensor -> {
+        Set<Sensor> sensors = new HashSet<>(securityRepository.getSensors());
+        for(Sensor sensor: sensors) {
             sensor.setActive(false);
             securityRepository.updateSensor(sensor);
-        });
+        }
 
         if(armingStatus == ArmingStatus.ARMED_HOME && catDetected) {
             setAlarmStatus(AlarmStatus.ALARM);
